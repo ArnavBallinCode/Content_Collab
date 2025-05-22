@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
@@ -45,6 +45,7 @@ export default function SignUp() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'creator' | 'editor'>('creator');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -56,44 +57,35 @@ export default function SignUp() {
     },
   });
 
+  // Watch for role changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'role' && value.role) {
+        console.log('Role changed to:', value.role);
+        setSelectedRole(value.role as 'creator' | 'editor');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
-      console.log('Form values:', values);
-      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
+        options: {
+          data: { role: values.role }
+        }
       });
 
-      if (signUpError) {
-        console.error('Sign up error:', signUpError);
-        throw signUpError;
-      }
+      if (signUpError) throw signUpError;
 
-      if (user) {
-        console.log('Creating profile with role:', values.role);
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: user.id,
-              email: user.email,
-              role: values.role,
-            },
-          ]);
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          throw profileError;
-        }
-
-        toast({
-          title: "Success",
-          description: `Account created successfully as ${values.role}`,
-        });
-
-        router.push('/dashboard');
-      }
+      toast({
+        title: "Check your email",
+        description: "A confirmation email has been sent. Please confirm your email before signing in.",
+      });
+      router.push('/sign-in');
     } catch (error) {
       console.error('Error signing up:', error);
       toast({
@@ -183,43 +175,52 @@ export default function SignUp() {
 
                 <FormField
                   name="role"
-                  render={({ field }: any) => (
+                  render={({ field }) => (
                     <FormItem>
                       <label htmlFor="role" className="block mb-1 font-medium text-gray-700">Sign up as</label>
-                      <Select 
-                        onValueChange={(value) => {
-                          console.log('Role selected:', value);
-                          field.onChange(value);
-                        }} 
-                        value={field.value} 
-                        required
-                      >
-                        <FormControl>
-                          <SelectTrigger id="role" className="h-11 bg-white/50 backdrop-blur-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500">
-                            <SelectValue placeholder="Select your role" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent position="popper" className="w-full bg-white/95 backdrop-blur-sm border border-gray-200/50 shadow-lg rounded-lg">
-                          <SelectItem value="creator" className="py-3 px-4 hover:bg-indigo-50 cursor-pointer">
-                            <div className="flex items-center space-x-3">
-                              <span className="text-xl">🎥</span>
-                              <div>
-                                <div className="font-medium text-gray-900">Content Creator</div>
-                                <div className="text-sm text-gray-500">Create and submit content</div>
-                              </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            field.onChange('creator');
+                            setSelectedRole('creator');
+                          }}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            field.value === 'creator'
+                              ? 'border-indigo-500 bg-indigo-50'
+                              : 'border-gray-200 hover:border-indigo-200'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center space-y-2">
+                            <span className="text-2xl">🎥</span>
+                            <div className="text-center">
+                              <div className="font-medium text-gray-900">Content Creator</div>
+                              <div className="text-sm text-gray-500">Create and submit content</div>
                             </div>
-                          </SelectItem>
-                          <SelectItem value="editor" className="py-3 px-4 hover:bg-indigo-50 cursor-pointer">
-                            <div className="flex items-center space-x-3">
-                              <span className="text-xl">✂️</span>
-                              <div>
-                                <div className="font-medium text-gray-900">Video Editor</div>
-                                <div className="text-sm text-gray-500">Edit and enhance content</div>
-                              </div>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            field.onChange('editor');
+                            setSelectedRole('editor');
+                          }}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            field.value === 'editor'
+                              ? 'border-indigo-500 bg-indigo-50'
+                              : 'border-gray-200 hover:border-indigo-200'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center space-y-2">
+                            <span className="text-2xl">✂️</span>
+                            <div className="text-center">
+                              <div className="font-medium text-gray-900">Video Editor</div>
+                              <div className="text-sm text-gray-500">Edit and enhance content</div>
                             </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                          </div>
+                        </button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -230,7 +231,7 @@ export default function SignUp() {
                   className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-base font-medium text-white shadow-lg shadow-indigo-500/25"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Creating account...' : 'Create Account'}
+                  {isLoading ? 'Creating account...' : `Create Account as ${selectedRole}`}
                 </Button>
               </form>
             </FormProvider>

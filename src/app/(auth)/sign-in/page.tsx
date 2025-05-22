@@ -41,12 +41,38 @@ export default function SignIn() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: { user }, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
 
       if (error) throw error;
+
+      if (!user) {
+        throw new Error('User not found after sign in.');
+      }
+
+      // Check if profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        // Create profile with role from user_metadata
+        const { error: insertError } = await supabase.from('profiles').insert([
+          {
+            id: user.id,
+            email: user.email,
+            role: user.user_metadata?.role || 'creator',
+          },
+        ]);
+        if (insertError) {
+          console.error('Profile creation error:', insertError);
+          throw insertError;
+        }
+      }
 
       toast({
         title: "Success",
