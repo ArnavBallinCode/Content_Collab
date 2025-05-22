@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
@@ -112,7 +112,7 @@ export default function SignUp() {
           </div>
 
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
-            <Form {...form}>
+            <FormProvider {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                   name="email"
@@ -172,8 +172,8 @@ export default function SignUp() {
                   name="role"
                   render={({ field }: any) => (
                     <FormItem>
-                      <FormLabel className="text-gray-700">I am a</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel className="text-gray-700">Sign up as</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} required>
                         <FormControl>
                           <SelectTrigger className="h-11">
                             <SelectValue placeholder="Select your role" />
@@ -197,7 +197,7 @@ export default function SignUp() {
                   {isLoading ? 'Creating account...' : 'Create Account'}
                 </Button>
               </form>
-            </Form>
+            </FormProvider>
 
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">

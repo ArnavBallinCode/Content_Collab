@@ -112,11 +112,10 @@ export default function NewProject() {
           </div>
 
           <FormProvider {...form}>
-            <Form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
-                control={form.control}
                 name="title"
-                render={({ field }) => (
+                render={({ field }: any) => (
                   <FormItem>
                     <FormLabel>Project Title</FormLabel>
                     <FormControl>
@@ -131,9 +130,8 @@ export default function NewProject() {
               />
 
               <FormField
-                control={form.control}
                 name="description"
-                render={({ field }) => (
+                render={({ field }: any) => (
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
@@ -150,9 +148,8 @@ export default function NewProject() {
 
               <div className="grid grid-cols-2 gap-6">
                 <FormField
-                  control={form.control}
                   name="reel_type"
-                  render={({ field }) => (
+                  render={({ field }: any) => (
                     <FormItem>
                       <FormLabel>Reel Type</FormLabel>
                       <FormControl>
@@ -171,9 +168,8 @@ export default function NewProject() {
                 />
 
                 <FormField
-                  control={form.control}
                   name="pricing_tier"
-                  render={({ field }) => (
+                  render={({ field }: any) => (
                     <FormItem>
                       <FormLabel>Pricing Tier</FormLabel>
                       <FormControl>
@@ -195,9 +191,8 @@ export default function NewProject() {
 
               {form.watch('pricing_tier') === 'custom' && (
                 <FormField
-                  control={form.control}
                   name="custom_price"
-                  render={({ field }) => (
+                  render={({ field }: any) => (
                     <FormItem>
                       <FormLabel>Custom Price ($)</FormLabel>
                       <FormControl>
@@ -217,9 +212,8 @@ export default function NewProject() {
               )}
 
               <FormField
-                control={form.control}
                 name="raw_footage_url"
-                render={({ field }) => (
+                render={({ field }: any) => (
                   <FormItem>
                     <FormLabel>Raw Footage URL</FormLabel>
                     <FormControl>
@@ -234,9 +228,8 @@ export default function NewProject() {
               />
 
               <FormField
-                control={form.control}
                 name="editing_instructions"
-                render={({ field }) => (
+                render={({ field }: any) => (
                   <FormItem>
                     <FormLabel>Editing Instructions</FormLabel>
                     <FormControl>
@@ -267,7 +260,7 @@ export default function NewProject() {
                   Cancel
                 </Button>
               </div>
-            </Form>
+            </form>
           </FormProvider>
         </div>
       </main>

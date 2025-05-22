@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
@@ -80,12 +80,11 @@ export default function SignIn() {
           </div>
 
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
-            <Form {...form}>
+            <FormProvider {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
-                  control={form.control}
                   name="email"
-                  render={({ field }) => (
+                  render={({ field }: any) => (
                     <FormItem>
                       <FormLabel className="text-gray-700">Email</FormLabel>
                       <FormControl>
@@ -102,9 +101,8 @@ export default function SignIn() {
                 />
 
                 <FormField
-                  control={form.control}
                   name="password"
-                  render={({ field }) => (
+                  render={({ field }: any) => (
                     <FormItem>
                       <FormLabel className="text-gray-700">Password</FormLabel>
                       <FormControl>
@@ -137,7 +135,7 @@ export default function SignIn() {
                   {isLoading ? 'Signing in...' : 'Sign In'}
                 </Button>
               </form>
-            </Form>
+            </FormProvider>
 
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
