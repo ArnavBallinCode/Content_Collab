@@ -92,6 +92,7 @@ export default function ProjectDetails({ params }: { params: PageParams }) {
             *,
             profiles!user_id(
               id,
+              email,
               role
             )
           `)
@@ -103,15 +104,11 @@ export default function ProjectDetails({ params }: { params: PageParams }) {
           throw commentsError;
         }
 
-        // Get the current user's email
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        const currentUserEmail = currentUser?.email || 'Unknown';
-
         // Map comments with user data
         const commentsWithUsers = commentsData?.map(comment => ({
           ...comment,
           user: {
-            email: comment.user_id === currentUser?.id ? currentUserEmail : 'Other User'
+            email: comment.profiles?.email || 'Unknown'
           }
         })) || [];
 

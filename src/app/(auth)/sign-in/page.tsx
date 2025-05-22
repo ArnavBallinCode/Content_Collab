@@ -67,31 +67,34 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-white to-purple-50" role="main">
       <Navbar />
       
       <main className="flex-1 flex items-center justify-center px-4 py-12 mt-16">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Welcome back</h1>
-            <p className="mt-2 text-gray-600">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              Welcome back
+            </h1>
+            <p className="mt-3 text-gray-600 text-lg">
               Sign in to your account to continue
             </p>
           </div>
 
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+          <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-gray-200/50">
             <FormProvider {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" role="form" aria-label="Sign in form">
                 <FormField
                   name="email"
                   render={({ field }: any) => (
                     <FormItem>
-                      <FormLabel className="text-gray-700">Email</FormLabel>
+                      <label htmlFor="email" className="block mb-1 font-medium text-gray-700">Email</label>
                       <FormControl>
                         <Input
+                          id="email"
                           type="email"
                           placeholder="Enter your email"
-                          className="h-11"
+                          className="h-11 bg-white/50 backdrop-blur-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
                           {...field}
                         />
                       </FormControl>
@@ -104,12 +107,13 @@ export default function SignIn() {
                   name="password"
                   render={({ field }: any) => (
                     <FormItem>
-                      <FormLabel className="text-gray-700">Password</FormLabel>
+                      <label htmlFor="password" className="block mb-1 font-medium text-gray-700">Password</label>
                       <FormControl>
                         <Input
+                          id="password"
                           type="password"
                           placeholder="Enter your password"
-                          className="h-11"
+                          className="h-11 bg-white/50 backdrop-blur-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
                           {...field}
                         />
                       </FormControl>
@@ -129,7 +133,7 @@ export default function SignIn() {
 
                 <Button
                   type="submit"
-                  className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-base font-medium"
+                  className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-base font-medium text-white shadow-lg shadow-indigo-500/25"
                   disabled={isLoading}
                 >
                   {isLoading ? 'Signing in...' : 'Sign In'}
