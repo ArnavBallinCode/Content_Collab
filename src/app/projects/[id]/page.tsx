@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth-context';
+import React from 'react';
 
 type Project = {
   id: string;
@@ -42,7 +43,11 @@ type ProjectVersion = {
   created_at: string;
 };
 
-export default function ProjectDetails({ params }: { params: { id: string } }) {
+type PageParams = {
+  id: string;
+};
+
+export default function ProjectDetails({ params }: { params: PageParams }) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, userRole } = useAuth();
@@ -57,6 +62,9 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
     editor_notes: '',
   });
 
+  // Unwrap params for Next.js 15+
+  const { id } = params;
+
   useEffect(() => {
     const fetchProjectData = async () => {
       try {
@@ -69,10 +77,12 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
         const { data: projectData, error: projectError } = await supabase
           .from('projects')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', id)
           .single();
-
-        if (projectError) throw projectError;
+        if (projectError) {
+          console.error('Supabase project error:', projectError);
+          throw projectError;
+        }
         setProject(projectData);
 
         // Fetch comments with user information
@@ -80,22 +90,43 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
           .from('comments')
           .select(`
             *,
-            user:profiles(email)
+            profiles!user_id(
+              id,
+              role
+            )
           `)
-          .eq('project_id', params.id)
+          .eq('project_id', id)
           .order('created_at', { ascending: true });
 
-        if (commentsError) throw commentsError;
-        setComments(commentsData || []);
+        if (commentsError) {
+          console.error('Supabase comments error:', commentsError);
+          throw commentsError;
+        }
+
+        // Get the current user's email
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        const currentUserEmail = currentUser?.email || 'Unknown';
+
+        // Map comments with user data
+        const commentsWithUsers = commentsData?.map(comment => ({
+          ...comment,
+          user: {
+            email: comment.user_id === currentUser?.id ? currentUserEmail : 'Other User'
+          }
+        })) || [];
+
+        setComments(commentsWithUsers);
 
         // Fetch project versions
         const { data: versionsData, error: versionsError } = await supabase
           .from('project_versions')
           .select('*')
-          .eq('project_id', params.id)
+          .eq('project_id', id)
           .order('version_number', { ascending: true });
-
-        if (versionsError) throw versionsError;
+        if (versionsError) {
+          console.error('Supabase versions error:', versionsError);
+          throw versionsError;
+        }
         setVersions(versionsData || []);
       } catch (error) {
         console.error('Error fetching project data:', error);
@@ -110,7 +141,7 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
     };
 
     fetchProjectData();
-  }, [params.id, router, toast, user]);
+  }, [id, router, toast, user]);
 
   const handleStatusChange = async (newStatus: Project['status']) => {
     if (!project) return;
@@ -162,7 +193,10 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
         .from('comments')
         .select(`
           *,
-          user:profiles(email)
+          profiles!user_id(
+            id,
+            role
+          )
         `)
         .eq('project_id', project.id)
         .order('created_at', { ascending: true });
@@ -224,6 +258,35 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleSubmitForReview = async () => {
+    if (!project) return;
+    try {
+      setIsLoading(true);
+      const { error } = await supabase
+        .from('projects')
+        .update({ status: 'submitted' })
+        .eq('id', project.id);
+      if (error) throw error;
+      toast({ title: 'Submitted', description: 'Project submitted for review.' });
+      // Refresh project data
+      const { data, error: fetchError } = await supabase
+        .from('projects')
+        .select(`*, creator:creator_id(*), editor:editor_id(*)`)
+        .eq('id', project.id)
+        .single();
+      if (!fetchError) setProject(data);
+    } catch (error) {
+      console.error('Error submitting for review:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to submit for review',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -272,7 +335,7 @@ export default function ProjectDetails({ params }: { params: { id: string } }) {
             <div className="flex gap-4">
               {canEdit && project.status === 'draft' && (
                 <Button
-                  onClick={() => handleStatusChange('submitted')}
+                  onClick={handleSubmitForReview}
                   className="bg-indigo-600 hover:bg-indigo-700"
                 >
                   Submit for Review
