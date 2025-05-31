@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
@@ -9,6 +10,8 @@ interface FileUploadProps {
   maxSize?: number;
   className?: string;
   label?: string;
+  progress?: number;
+  uploading?: boolean;
 }
 
 export default function FileUpload({
@@ -19,7 +22,9 @@ export default function FileUpload({
   },
   maxSize = 100 * 1024 * 1024, // 100MB
   className,
-  label = 'Drop files here or click to browse'
+  label = 'Drop files here or click to browse',
+  progress = 0,
+  uploading = false
 }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,12 +89,23 @@ export default function FileUpload({
             {Object.keys(accept).join(', ')}
           </p>
         </div>
-        
-        {file && (
-          <div className="w-full mt-4 text-sm text-center text-gray-500">
-            Selected: {file.name} ({Math.round(file.size / 1024)} KB)
-          </div>
-        )}
+           {file && (
+        <div className="w-full mt-4">
+          {uploading ? (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Uploading...</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+          ) : (
+            <div className="text-sm text-center text-gray-500">
+              Selected: {file.name} ({Math.round(file.size / 1024)} KB)
+            </div>
+          )}
+        </div>
+      )}
       </div>
       
       {error && (

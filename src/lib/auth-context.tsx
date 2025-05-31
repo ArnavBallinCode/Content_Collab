@@ -79,10 +79,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) throw error;
-      setUserRole(profile.role);
+      
+      if (profile && profile.role) {
+        setUserRole(profile.role);
+      } else {
+        // Create default profile if not exists
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: userId,
+              email: user?.email,
+              role: 'creator',
+            }
+          ]);
+        if (insertError) throw insertError;
+        setUserRole('creator');
+      }
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching user role:', error);
       setUserRole(null);
+      setLoading(false);
     }
   };
 

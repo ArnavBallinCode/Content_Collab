@@ -75,7 +75,12 @@ export default function ProjectCard({ project, userRole }: ProjectCardProps) {
               </Button>
               {project.status === 'draft' && (
                 <Button size="sm" asChild>
-                  <Link href={`/project/${project.id}/edit`}>Edit Project</Link>
+                  <Link href={`/projects/${project.id}/edit`}>Edit Project</Link>
+                </Button>
+              )}
+              {project.status === 'draft' && (
+                <Button size="sm" className="bg-green-600 hover:bg-green-700" asChild>
+                  <Link href={`/project/${project.id}`}>Submit</Link>
                 </Button>
               )}
             </>
@@ -84,9 +89,14 @@ export default function ProjectCard({ project, userRole }: ProjectCardProps) {
               <Button variant="ghost" size="sm" asChild>
                 <Link href={`/project/${project.id}`}>View Details</Link>
               </Button>
-              {project.status === 'in_progress' && (
+              {project.status === 'submitted' && (
                 <Button size="sm" asChild>
-                  <Link href={`/project/${project.id}/edit`}>Work on Project</Link>
+                  <Link href={`/project/${project.id}`}>Take Project</Link>
+                </Button>
+              )}
+              {project.status === 'in_progress' && (
+                <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" asChild>
+                  <Link href={`/project/${project.id}`}>Work on Project</Link>
                 </Button>
               )}
             </>

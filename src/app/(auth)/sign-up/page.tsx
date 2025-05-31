@@ -71,19 +71,39 @@ export default function SignUp() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
+      // 1. Sign up the user with Supabase Auth
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
-          data: { role: values.role }
+          data: { 
+            role: values.role 
+          }
         }
       });
 
       if (signUpError) throw signUpError;
 
+      if (data.user) {
+        // 2. Manually create the profile since we're using email confirmation
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              email: values.email,
+              role: values.role,
+            }
+          ]);
+        
+        if (profileError) {
+          console.error("Profile creation error:", profileError);
+        }
+      }
+
       toast({
-        title: "Check your email",
-        description: "A confirmation email has been sent. Please confirm your email before signing in.",
+        title: "Account created successfully",
+        description: "You can now sign in with your credentials.",
       });
       router.push('/sign-in');
     } catch (error) {

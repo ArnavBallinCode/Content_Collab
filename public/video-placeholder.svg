@@ -1,0 +1,8 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#1F2937"/>
+  <g opacity="0.7">
+    <path d="M640 360C694.124 360 738 316.124 738 262C738 207.876 694.124 164 640 164C585.876 164 542 207.876 542 262C542 316.124 585.876 360 640 360Z" stroke="white" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M706.78 347.24L723.12 556L640 483.2L556.88 556L573.22 347.22" stroke="white" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="640" y="640" font-family="sans-serif" font-size="48" fill="white" text-anchor="middle">Video Preview</text>
+</svg>

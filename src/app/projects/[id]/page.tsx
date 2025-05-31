@@ -47,7 +47,7 @@ type PageParams = {
   id: string;
 };
 
-export default function ProjectDetails({ params }: { params: PageParams }) {
+export default function ProjectDetails({ params }: ProjectDetailProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { user, userRole } = useAuth();
@@ -63,7 +63,8 @@ export default function ProjectDetails({ params }: { params: PageParams }) {
   });
 
   // Unwrap params for Next.js 15+
-  const { id } = params;
+  const unwrappedParams = React.use(params);
+  const { id } = unwrappedParams;
 
   useEffect(() => {
     const fetchProjectData = async () => {

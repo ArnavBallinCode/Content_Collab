@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/toaster";
 
-const inter = Inter({ subsets: ["latin"] });
+const outfit = Outfit({ 
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-outfit'
+});
 
 export const metadata: Metadata = {
-  title: "Content Collab",
-  description: "Collaborate with video editors on your content",
+  title: "Collaborative Coreel",
+  description: "Connect creators with editors to transform raw footage into stunning reels",
 };
 
 export default function RootLayout({
@@ -18,7 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={outfit.className}>
         <AuthProvider>
           {children}
           <Toaster />

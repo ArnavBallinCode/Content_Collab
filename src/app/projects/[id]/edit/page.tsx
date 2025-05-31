@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import { useForm, FormProvider } from 'react-hook-form';
@@ -20,7 +20,9 @@ import {
 } from '@/components/ui/form';
 import { useToast } from '@/components/ui/use-toast';
 import FileUpload from '@/components/FileUpload';
+import { useAuth } from '@/lib/auth-context';
 
+// Schema for project form
 const formSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters' }),
@@ -34,11 +36,20 @@ const formSchema = z.object({
   editing_instructions: z.string().min(10, { message: 'Instructions must be at least 10 characters' }),
 });
 
-export default function NewProject() {
+interface EditProjectProps {
+  params: {
+    id: string;
+  };
+}
+
+export default function EditProject({ params }: EditProjectProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [rawFootageFile, setRawFootageFile] = useState<File | null>(null);
+  const [currentRawFootageUrl, setCurrentRawFootageUrl] = useState<string>('');
   const [uploadProgress, setUploadProgress] = useState(0);
   
   const form = useForm<z.infer<typeof formSchema>>({
@@ -52,91 +63,148 @@ export default function NewProject() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
-    
-    try {
-      if (!rawFootageFile) {
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        if (!user) {
+          router.push('/sign-in');
+          return;
+        }
+
+        // Fetch project details
+        const { data: project, error } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', params.id)
+          .single();
+
+        if (error) throw error;
+        if (!project) throw new Error('Project not found');
+
+        // Check if user is the creator
+        if (project.creator_id !== user.id) {
+          router.push('/dashboard');
+          toast({
+            variant: "destructive",
+            title: "Access denied",
+            description: "You don't have permission to edit this project",
+          });
+          return;
+        }
+
+        // Check if project is in editable state
+        if (!['draft', 'submitted'].includes(project.status)) {
+          router.push(`/project/${params.id}`);
+          toast({
+            variant: "destructive",
+            title: "Cannot edit",
+            description: "This project is already in progress or completed and cannot be edited",
+          });
+          return;
+        }
+
+        // Set form values
+        form.reset({
+          title: project.title,
+          description: project.description,
+          reel_type: project.reel_type,
+          pricing_tier: project.pricing_tier,
+          custom_price: project.custom_price,
+          editing_instructions: project.editing_instructions,
+        });
+
+        setCurrentRawFootageUrl(project.raw_footage_url);
+      } catch (error) {
+        console.error('Error fetching project:', error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Please upload your raw footage",
+          description: "Failed to load project data",
         });
+        router.push('/dashboard');
+      } finally {
         setIsLoading(false);
-        return;
+      }
+    };
+
+    fetchProject();
+  }, [params.id, user, router, toast, form]);
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSaving(true);
+    
+    try {
+      let raw_footage_url = currentRawFootageUrl;
+
+      // Upload new raw footage if provided
+      if (rawFootageFile) {
+        const fileExt = rawFootageFile.name.split('.').pop();
+        const fileName = `raw-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+        const filePath = `${params.id}/${fileName}`;
+        
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('project-files')
+          .upload(filePath, rawFootageFile, {
+            onUploadProgress: (progress) => {
+              const percent = Math.round((progress.loaded / progress.total) * 100);
+              setUploadProgress(percent);
+            },
+          });
+        
+        if (uploadError) throw uploadError;
+        
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('project-files')
+          .getPublicUrl(filePath);
+        
+        raw_footage_url = publicUrl;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/sign-in');
-        return;
-      }
-
-      // Create the project first to get the ID
-      const { data: project, error: projectError } = await supabase
+      // Update the project
+      const { error } = await supabase
         .from('projects')
-        .insert({
-          creator_id: user.id,
+        .update({
           title: values.title,
           description: values.description,
           reel_type: values.reel_type,
           pricing_tier: values.pricing_tier,
           custom_price: values.custom_price,
-          raw_footage_url: '', // Temporary, will update after file upload
+          raw_footage_url,
           editing_instructions: values.editing_instructions,
-          status: 'draft',
         })
-        .select()
-        .single();
+        .eq('id', params.id);
 
-      if (projectError) throw projectError;
-
-      // Upload the raw footage file
-      const fileExt = rawFootageFile.name.split('.').pop();
-      const fileName = `raw-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `${project.id}/${fileName}`;
-      
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('project-files')
-        .upload(filePath, rawFootageFile, {
-          onUploadProgress: (progress) => {
-            const percent = Math.round((progress.loaded / progress.total) * 100);
-            setUploadProgress(percent);
-          },
-        });
-      
-      if (uploadError) throw uploadError;
-      
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('project-files')
-        .getPublicUrl(filePath);
-      
-      // Update the project with the file URL
-      const { error: updateError } = await supabase
-        .from('projects')
-        .update({ raw_footage_url: publicUrl })
-        .eq('id', project.id);
-        
-      if (updateError) throw updateError;
+      if (error) throw error;
 
       toast({
-        title: "Project created",
-        description: "Your project has been created successfully.",
+        title: "Project updated",
+        description: "Your project has been updated successfully.",
       });
       
-      router.push(`/project/${project.id}`);
+      router.push(`/project/${params.id}`);
     } catch (error) {
-      console.error('Error creating project:', error);
+      console.error('Error updating project:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create project. Please try again.",
+        description: "Failed to update project. Please try again.",
       });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-8 mt-16 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -146,9 +214,9 @@ export default function NewProject() {
       <main className="flex-1 container mx-auto px-4 py-8 mt-16">
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Create New Project</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Edit Project</h1>
             <p className="mt-2 text-gray-600">
-              Fill out the form below to create a new project
+              Update your project details
             </p>
           </div>
 
@@ -156,7 +224,7 @@ export default function NewProject() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 name="title"
-                render={({ field }: any) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Project Title</FormLabel>
                     <FormControl>
@@ -172,7 +240,7 @@ export default function NewProject() {
 
               <FormField
                 name="description"
-                render={({ field }: any) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
@@ -190,7 +258,7 @@ export default function NewProject() {
               <div className="grid grid-cols-2 gap-6">
                 <FormField
                   name="reel_type"
-                  render={({ field }: any) => (
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Reel Type</FormLabel>
                       <FormControl>
@@ -210,7 +278,7 @@ export default function NewProject() {
 
                 <FormField
                   name="pricing_tier"
-                  render={({ field }: any) => (
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Pricing Tier</FormLabel>
                       <FormControl>
@@ -233,7 +301,7 @@ export default function NewProject() {
               {form.watch('pricing_tier') === 'custom' && (
                 <FormField
                   name="custom_price"
-                  render={({ field }: any) => (
+                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Custom Price ($)</FormLabel>
                       <FormControl>
@@ -254,25 +322,31 @@ export default function NewProject() {
 
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Raw Footage</h4>
-                <FileUpload
-                  onFileSelect={(file) => setRawFootageFile(file)}
-                  accept={{
-                    'video/*': ['.mp4', '.mov', '.avi', '.wmv'],
-                    'application/zip': ['.zip'],
-                    'application/x-rar-compressed': ['.rar']
-                  }}
-                  label="Upload your raw footage (videos, compressed archives)"
-                  uploading={isLoading && uploadProgress > 0 && uploadProgress < 100}
-                  progress={uploadProgress}
-                />
-                {!rawFootageFile && (
-                  <p className="text-sm text-red-500 mt-1">Raw footage is required</p>
-                )}
+                <div className="mb-2">
+                  {currentRawFootageUrl && (
+                    <div className="p-3 bg-gray-50 rounded-md mb-2 text-sm">
+                      <p className="text-gray-700">Current file: <a href={currentRawFootageUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">{currentRawFootageUrl.split('/').pop()}</a></p>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <FileUpload
+                    onFileSelect={(file) => setRawFootageFile(file)}
+                    accept={{
+                      'video/*': ['.mp4', '.mov', '.avi', '.wmv'],
+                      'application/zip': ['.zip'],
+                      'application/x-rar-compressed': ['.rar']
+                    }}
+                    label="Upload new raw footage (optional)"
+                    uploading={isSaving && uploadProgress > 0 && uploadProgress < 100}
+                    progress={uploadProgress}
+                  />
+                </div>
               </div>
 
               <FormField
                 name="editing_instructions"
-                render={({ field }: any) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Editing Instructions</FormLabel>
                     <FormControl>
@@ -291,9 +365,9 @@ export default function NewProject() {
                 <Button
                   type="submit"
                   className="bg-indigo-600 hover:bg-indigo-700"
-                  disabled={isLoading}
+                  disabled={isSaving}
                 >
-                  {isLoading ? 'Creating...' : 'Create Project'}
+                  {isSaving ? 'Saving...' : 'Save Changes'}
                 </Button>
                 <Button
                   type="button"
@@ -309,4 +383,4 @@ export default function NewProject() {
       </main>
     </div>
   );
-} 
+}

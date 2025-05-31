@@ -7,6 +7,7 @@ interface CommentsProps {
   projectId: string;
   comments: Comment[];
   currentUserId: string;
+  onSubmitComment?: (content: string, timestamp: number | null) => Promise<boolean>;
 }
 
 // Helper function to format date
@@ -30,7 +31,7 @@ const formatTimestamp = (timestamp?: number) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-export default function Comments({ projectId, comments, currentUserId }: CommentsProps) {
+export default function Comments({ projectId, comments, currentUserId, onSubmitComment }: CommentsProps) {
   const [newComment, setNewComment] = useState('');
   const [timestamp, setTimestamp] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,29 +44,24 @@ export default function Comments({ projectId, comments, currentUserId }: Comment
     setIsSubmitting(true);
     
     try {
-      // Here you would add the comment to the database
-      
-      console.log('Adding comment:', {
-        projectId,
-        userId: currentUserId,
-        content: newComment,
-        timestamp,
-      });
-      
-      // Sample implementation (replace with actual implementation)
-      // const { data, error } = await supabase.from('comments').insert([
-      //   {
-      //     project_id: projectId,
-      //     user_id: currentUserId,
-      //     content: newComment,
-      //     timestamp: timestamp || null,
-      //   },
-      // ]);
-      
-      // if (error) throw error;
-      
-      setNewComment('');
-      setTimestamp(null);
+      if (onSubmitComment) {
+        const success = await onSubmitComment(newComment, timestamp);
+        if (success) {
+          setNewComment('');
+          setTimestamp(null);
+        }
+      } else {
+        // Fallback for sample implementation
+        console.log('Adding comment:', {
+          projectId,
+          userId: currentUserId,
+          content: newComment,
+          timestamp,
+        });
+        
+        setNewComment('');
+        setTimestamp(null);
+      }
     } catch (error) {
       console.error('Error adding comment:', error);
       alert('Error adding comment. Please try again.');
