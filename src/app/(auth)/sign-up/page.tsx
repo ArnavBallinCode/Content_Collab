@@ -71,6 +71,8 @@ export default function SignUp() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
+      console.log('Starting sign-up process with role:', values.role);
+      
       // 1. Sign up the user with Supabase Auth
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: values.email,
@@ -85,33 +87,75 @@ export default function SignUp() {
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        // 2. Manually create the profile since we're using email confirmation
-        const { error: profileError } = await supabase
+        console.log('User created successfully:', data.user.id);
+        console.log('User metadata:', data.user.user_metadata);
+        
+        // 2. Wait a moment for potential trigger, then check
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // 3. Check if profile exists
+        const { data: existingProfile, error: profileCheckError } = await supabase
           .from('profiles')
-          .insert([
-            {
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileCheckError?.code === 'PGRST116') {
+          // Profile doesn't exist - create it manually
+          console.log('Creating profile manually...');
+          
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
               id: data.user.id,
               email: values.email,
-              role: values.role,
+              role: values.role
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Profile creation failed:', createError);
+            throw new Error(`Failed to create user profile: ${createError.message}`);
+          }
+          
+          console.log('Profile created successfully:', newProfile);
+        } else if (existingProfile) {
+          console.log('Profile exists:', existingProfile);
+          
+          // Verify and update role if needed
+          if (existingProfile.role !== values.role) {
+            console.log('Updating role from', existingProfile.role, 'to', values.role);
+            
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ role: values.role })
+              .eq('id', data.user.id);
+              
+            if (updateError) {
+              console.error('Role update failed:', updateError);
+            } else {
+              console.log('Role updated successfully');
             }
-          ]);
-        
-        if (profileError) {
-          console.error("Profile creation error:", profileError);
+          }
+        } else if (profileCheckError) {
+          console.error('Profile check error:', profileCheckError);
+          throw new Error(`Database error: ${profileCheckError.message}`);
         }
       }
 
       toast({
         title: "Account created successfully",
-        description: "You can now sign in with your credentials.",
+        description: `Your ${values.role} account is ready! You can now sign in.`,
       });
+      
       router.push('/sign-in');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error signing up:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create account. Please try again.",
+        description: error.message || "Failed to create account. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -195,7 +239,7 @@ export default function SignUp() {
 
                 <FormField
                   name="role"
-                  render={({ field }) => (
+                  render={({ field }: any) => (
                     <FormItem>
                       <label htmlFor="role" className="block mb-1 font-medium text-gray-700">Sign up as</label>
                       <div className="grid grid-cols-2 gap-4">

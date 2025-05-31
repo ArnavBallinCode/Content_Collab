@@ -78,23 +78,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist - this should not happen with the trigger
+          // But if it does, wait a moment and retry
+          console.log('Profile not found, retrying...');
+          setTimeout(() => fetchUserRole(userId), 1000);
+          return;
+        }
+        throw error;
+      }
       
       if (profile && profile.role) {
         setUserRole(profile.role);
       } else {
-        // Create default profile if not exists
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: userId,
-              email: user?.email,
-              role: 'creator',
-            }
-          ]);
-        if (insertError) throw insertError;
-        setUserRole('creator');
+        // This should not happen if the trigger is working
+        console.error('Profile exists but has no role');
+        setUserRole('creator'); // Fallback
       }
       setLoading(false);
     } catch (error) {

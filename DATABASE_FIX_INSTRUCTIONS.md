@@ -1,12 +1,45 @@
+# Database Schema Fix Instructions
+
+## The Problem
+The collaborative video platform has a database trigger that creates user profiles automatically, but it's failing due to missing Row Level Security (RLS) INSERT policy on the `profiles` table.
+
+## Quick Fix Option 1: Apply SQL Schema via Supabase Dashboard
+
+1. Go to your Supabase dashboard: https://supabase.com/dashboard
+2. Navigate to your project: `xhbqcwlujwwrvitkfpvg`
+3. Go to the SQL Editor
+4. Copy and paste the following SQL:
+
+```sql
+-- Add the missing INSERT policy for profiles table
+CREATE POLICY "Users can insert their own profile"
+    ON public.profiles FOR INSERT
+    WITH CHECK (auth.uid() = id);
+```
+
+5. Click "Run" to execute the SQL
+
+## Quick Fix Option 2: Temporary Workaround (Alternative)
+
+If you can't access the Supabase dashboard right now, I can modify the sign-up flow to work around the trigger issue temporarily by:
+
+1. Disabling the automatic trigger
+2. Manually creating profiles in the sign-up flow
+3. Ensuring proper role assignment
+
+Would you like me to implement the temporary workaround, or can you apply the SQL fix via the dashboard?
+
+## Full Schema (if needed)
+
+If the above doesn't work, here's the complete schema that should be applied:
+
+```sql
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Create enum types
 CREATE TYPE user_role AS ENUM ('creator', 'editor');
-CREATE TYPE project_status AS ENUM ('draft', 'submitted', 'in_progress', 'in_revision', 'completed', 'cancelled');
-CREATE TYPE reel_type AS ENUM ('instagram', 'youtube_shorts', 'tiktok');
-CREATE TYPE pricing_tier AS ENUM ('basic', 'pro', 'premium', 'custom');
 
 -- Update the profiles table
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -52,12 +85,11 @@ CREATE POLICY "Users can insert their own profile"
 CREATE POLICY "Users can update their own profile"
     ON public.profiles FOR UPDATE
     USING (auth.uid() = id);
+```
 
--- Set up auth email templates
-SELECT * FROM auth.config();
+## Testing After Fix
 
-UPDATE auth.config SET
-    site_url = 'http://localhost:3000',
-    additional_redirect_urls = '{"http://localhost:3000/auth/callback"}',
-    enable_email_signup = true,
-    enable_email_autoconfirm = true;
+1. Go to http://localhost:3001/sign-up
+2. Create a new account with "Video Editor" role
+3. Check that the account is created successfully
+4. Verify the role is correctly set to "editor"
